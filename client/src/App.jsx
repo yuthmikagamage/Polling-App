@@ -39,7 +39,7 @@ function App() {
           )
         );
       } else if (data.type === "pollCreated") {
-        setPolls(data.polls);
+        setPolls((prevPolls) => [data.poll, ...prevPolls]);
         setShowCreatePoll(false);
         setNewPollTitle("");
         setNewPollOptions(["", ""]);

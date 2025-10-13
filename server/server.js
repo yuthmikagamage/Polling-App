@@ -1,6 +1,5 @@
 const ws = require("ws");
 const server = new ws.Server({ port: 3001 });
-
 console.log("Server Connected! Port - 3001");
 
 const polls = [
@@ -14,7 +13,6 @@ const polls = [
       Python: 0,
       jQuery: 0,
     },
-    totalVotes: 0,
     hasVoted: false,
     selectedOption: null,
   },
@@ -24,8 +22,6 @@ let pollCounter = 0;
 
 server.on("connection", (client) => {
   console.log("Client Connected");
-
-  // Send all polls to newly connected client
   client.send(
     JSON.stringify({
       type: "allPolls",
@@ -38,17 +34,18 @@ server.on("connection", (client) => {
 
     if (data.type === "vote") {
       const poll = polls.find((p) => p.id === data.pollId);
-
       if (poll) {
         poll.votes[data.option]++;
-        poll.totalVotes++;
+        const totalVotes = Object.values(poll.votes).reduce(
+          (sum, count) => sum + count,
+          0
+        );
 
-        // Broadcast update to all clients
         const updateMessage = JSON.stringify({
           type: "update",
           pollId: data.pollId,
           votes: poll.votes,
-          totalVotes: poll.totalVotes,
+          totalVotes: totalVotes,
         });
 
         server.clients.forEach((c) => {
@@ -60,8 +57,8 @@ server.on("connection", (client) => {
     } else if (data.type === "createPoll") {
       pollCounter++;
       const newPollId = `poll_${pollCounter}_${Date.now()}`;
-
       const newVotes = {};
+
       data.options.forEach((option) => {
         newVotes[option] = 0;
       });
@@ -71,22 +68,20 @@ server.on("connection", (client) => {
         title: data.title,
         options: data.options,
         votes: newVotes,
-        totalVotes: 0,
         hasVoted: false,
         selectedOption: null,
       };
 
       polls.push(newPoll);
 
-      // Broadcast new poll list to all clients
-      const pollsListMessage = JSON.stringify({
+      const newPollMessage = JSON.stringify({
         type: "pollCreated",
-        polls: polls,
+        poll: newPoll,
       });
 
       server.clients.forEach((c) => {
         if (c.readyState === ws.OPEN) {
-          c.send(pollsListMessage);
+          c.send(newPollMessage);
         }
       });
 
